@@ -1,18 +1,14 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 dotenv.config();
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 /**
  * Build a strict structured prompt from the assignment config.
  */
-function buildPrompt(config) {
+function buildPrompt(config: any) {
   const { title, subject, difficulty, questionRows, additionalInfo, timeLimit } = config;
 
   const questionSpec = questionRows
-    .map((r) => `- ${r.count} ${r.type} question(s), ${r.marks} mark(s) each`)
+    .map((r: any) => `- ${r.count} ${r.type} question(s), ${r.marks} mark(s) each`)
     .join('\n');
 
   return `You are an expert teacher creating a formal exam question paper.
@@ -59,16 +55,46 @@ IMPORTANT: Respond ONLY with valid JSON matching this exact structure, no markdo
 }
 
 /**
- * Call Gemini and parse the structured JSON response.
+ * Call OpenRouter and parse the structured JSON response.
  */
-export async function generateQuestionPaper(config) {
+export async function generateQuestionPaper(config: any) {
   const prompt = buildPrompt(config);
+  const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.replace(/^["']|["']$/g, '') : '';
 
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
+  if (!apiKey) {
+    throw new Error('API Key is missing in environment variables.');
+  }
 
-  // Strip markdown code fences if Gemini wraps in ```json ... ```
-  const cleaned = raw
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'Veda AI',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash:free',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} ${response.statusText} - ${errText}`);
+  }
+
+  const data = (await response.json()) as any;
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('OpenRouter returned an empty response.');
+  }
+
+  // Strip markdown code fences if wrapped in ```json ... ```
+  const cleaned = content
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/```\s*$/i, '')
@@ -78,11 +104,11 @@ export async function generateQuestionPaper(config) {
   try {
     parsed = JSON.parse(cleaned);
   } catch (e) {
-    throw new Error(`Gemini returned invalid JSON: ${cleaned.substring(0, 200)}`);
+    throw new Error(`OpenRouter returned invalid JSON: ${cleaned.substring(0, 200)}`);
   }
 
   if (!parsed.sections || !Array.isArray(parsed.sections)) {
-    throw new Error('Gemini response missing sections array');
+    throw new Error('OpenRouter response missing sections array');
   }
 
   return parsed;
