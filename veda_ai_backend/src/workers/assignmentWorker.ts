@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from '../config/redis.js';
+import { bullMQRedisOptions } from '../config/redis.js';
 import { generateQuestionPaper } from '../services/geminiService.js';
 import { emitToUser } from '../config/websocket.js';
 import Assignment from '../models/Assignment.js';
@@ -89,7 +89,7 @@ export function startAssignmentWorker() {
       }
     },
     {
-      connection: redisConnection as any,
+      connection: bullMQRedisOptions, // options object, not a Redis instance
       concurrency: 3,
     }
   );

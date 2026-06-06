@@ -1,8 +1,9 @@
 import { Queue } from 'bullmq';
-import { redisConnection } from '../config/redis.js';
+import { bullMQRedisOptions } from '../config/redis.js';
 
+// Each BullMQ Queue needs its own connection — pass options, not an ioredis instance
 export const assignmentQueue = new Queue('assignment-generation', {
-  connection: redisConnection as any,
+  connection: bullMQRedisOptions,
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'exponential', delay: 3000 },
@@ -12,3 +13,4 @@ export const assignmentQueue = new Queue('assignment-generation', {
 });
 
 console.log('BullMQ assignment queue initialized');
+
