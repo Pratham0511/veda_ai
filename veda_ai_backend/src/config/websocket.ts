@@ -1,19 +1,16 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const WS_PORT = parseInt(process.env.WS_PORT || '8080');
+import { Server as HttpServer } from 'http';
 
 // Map of userId → Set of WebSocket clients
 const clients = new Map();
 
-let wss = null;
+let wss: WebSocketServer | null = null;
 
-export function initWebSocketServer() {
-  wss = new WebSocketServer({ port: WS_PORT });
+export function initWebSocketServer(server: HttpServer) {
+  wss = new WebSocketServer({ server });
 
   wss.on('listening', () => {
-    console.log(`WebSocket server running on ws://localhost:${WS_PORT}`);
+    console.log(`WebSocket server initialized and sharing Express HTTP server port`);
   });
 
   wss.on('connection', (ws, req) => {

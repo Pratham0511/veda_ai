@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
@@ -15,13 +16,16 @@ dotenv.config();
 // Connect to MongoDB
 connectDB();
 
-// Initialize WebSocket server
-initWebSocketServer();
+const app = express();
+
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket server attached to the HTTP server
+initWebSocketServer(server);
 
 // Start BullMQ worker
 startAssignmentWorker();
-
-const app = express();
 
 // Middlewares
 app.use(
@@ -57,6 +61,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
