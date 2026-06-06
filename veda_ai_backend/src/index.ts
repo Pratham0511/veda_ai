@@ -9,6 +9,7 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 import { initWebSocketServer } from './config/websocket.js';
 import { startAssignmentWorker } from './workers/assignmentWorker.js';
 import { redisConnection } from './config/redis.js';
+import { verifySMTP } from './config/sendEmail.js';
 
 // Load environment variables
 dotenv.config();
@@ -16,7 +17,13 @@ dotenv.config();
 // Connect to MongoDB
 connectDB();
 
+// Verify SMTP connection on startup
+verifySMTP();
+
 const app = express();
+
+// Trust reverse proxy (Railway, Render, Vercel etc.) for express-rate-limit
+app.set('trust proxy', 1);
 
 // Create HTTP server
 const server = createServer(app);

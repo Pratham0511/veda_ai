@@ -54,6 +54,43 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     console.log(`[FALLBACK LOG] Subject: ${subject}`);
     console.log(`[FALLBACK LOG] Body:\n${text}`);
     console.log('======================================================\n');
-    return { success: true, error: error.message };
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Verifies the SMTP configuration on startup and logs the status.
+ */
+export const verifySMTP = async () => {
+  const hasSMTP = process.env.SMTP_USER && process.env.SMTP_PASS;
+  if (!hasSMTP) {
+    console.log('[SMTP] Warning: SMTP_USER or SMTP_PASS environment variables are missing. Running in MOCK mode (emails will print to console logs only).');
+    return;
+  }
+
+  try {
+    const config = process.env.SMTP_HOST
+      ? {
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        }
+      : {
+          service: 'gmail',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        };
+
+    const transporter = nodemailer.createTransport(config);
+    await transporter.verify();
+    console.log('[SMTP] Success: Connection verified and ready to send emails.');
+  } catch (error) {
+    console.error(`[SMTP] Error: Connection verification failed. Check your credentials or app password: ${error.message}`);
   }
 };
