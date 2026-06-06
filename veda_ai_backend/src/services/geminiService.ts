@@ -74,7 +74,7 @@ export async function generateQuestionPaper(config: any) {
       'X-Title': 'Veda AI',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash:free',
+      model: 'google/gemma-2-9b-it:free',
       messages: [
         { role: 'user', content: prompt }
       ],
