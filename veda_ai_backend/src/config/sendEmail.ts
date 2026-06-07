@@ -1,40 +1,31 @@
 import nodemailer from 'nodemailer';
-import dns from 'dns';
-import { promisify } from 'util';
-
-const resolve4 = promisify(dns.resolve4);
 
 /**
- * Resolves SMTP host to IPv4 and returns transporter configuration
+ * Returns transporter configuration.
+ * Uses port 465 (SSL) which is allowed on Railway/cloud platforms.
+ * Port 587 (STARTTLS) is commonly blocked on production cloud environments.
  */
-async function getSMTPConfig() {
+function getSMTPConfig() {
   const hostName = process.env.SMTP_HOST || 'smtp.gmail.com';
-  let hostIp = hostName;
+  const port = parseInt(process.env.SMTP_PORT || '465');
+  // port 465 requires secure:true (SSL), port 587 uses STARTTLS (secure:false)
+  const secure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : port === 465;
 
-  if (!/^[0-9.]+$/.test(hostName)) {
-    try {
-      const ips = await resolve4(hostName);
-      if (ips && ips.length > 0) {
-        hostIp = ips[0];
-        console.log(`[SMTP] Resolved ${hostName} to IPv4: ${hostIp}`);
-      }
-    } catch (dnsErr) {
-      console.warn(`[SMTP] DNS resolution failed for ${hostName}, using hostname fallback:`, dnsErr.message);
-    }
-  }
+  console.log(`[SMTP] Connecting to ${hostName}:${port} (secure=${secure})`);
 
   return {
-    host: hostIp,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
+    host: hostName,
+    port,
+    secure,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    tls: {
-      servername: hostName, // Forces TLS connection verification against the hostname (e.g. smtp.gmail.com) instead of the IP address
-      rejectUnauthorized: true,
-    }
+    connectionTimeout: 10000, // 10s — fail fast instead of hanging
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   };
 }
 
@@ -55,7 +46,7 @@ export const sendEmail = async ({ to, subject, text, html }) => {
   }
 
   try {
-    const config = await getSMTPConfig();
+    const config = getSMTPConfig();
     const transporter = nodemailer.createTransport(config as any);
 
     const info = await transporter.sendMail({
@@ -90,7 +81,7 @@ export const verifySMTP = async () => {
   }
 
   try {
-    const config = await getSMTPConfig();
+    const config = getSMTPConfig();
     const transporter = nodemailer.createTransport(config as any);
     await transporter.verify();
     console.log('[SMTP] Success: Connection verified and ready to send emails.');
