@@ -1,4 +1,4 @@
-import sgMail from '@sendgrid/mail';
+import nodemailer from 'nodemailer';
 
 export const sendEmail = async ({
   to,
@@ -11,33 +11,40 @@ export const sendEmail = async ({
   html?: string;
   text?: string;
 }) => {
-  if (process.env.SENDGRID_API_KEY) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  }
+  // Create a transporter using Gmail's SMTP server
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465, // Use 465 for secure connection, Railway allows this port
+    secure: true, 
+    auth: {
+      user: process.env.EMAIL_USER, // Your Gmail address
+      pass: process.env.EMAIL_APP_PASSWORD, // Your Gmail App Password
+    },
+  });
 
   const msg = {
+    from: `Veda AI <${process.env.EMAIL_USER}>`,
     to,
-    from: process.env.EMAIL_FROM || 'test@example.com', // Change to your verified sender
     subject,
     text: text || '',
     html: html || '',
   };
 
   try {
-    const response = await sgMail.send(msg);
-    console.log('[Email] Sent via SendGrid to:', to);
-    return response;
+    const info = await transporter.sendMail(msg);
+    console.log('[Email] Sent via Gmail SMTP to:', to);
+    return info;
   } catch (error: any) {
-    console.error('[Email] Failed to send:', error.response?.body || error.message);
+    console.error('[Email] Failed to send:', error.message);
     throw new Error(error.message);
   }
 };
 
 // Called on server startup to confirm email is configured
 export const verifySMTP = () => {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn('[Email] SENDGRID_API_KEY is not set — emails will not work.');
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+    console.warn('[Email] EMAIL_USER or EMAIL_APP_PASSWORD is not set — emails will not work.');
   } else {
-    console.log('[Email] SendGrid is configured and ready.');
+    console.log('[Email] Nodemailer (Gmail) is configured and ready.');
   }
 };
