@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
 
 export const sendEmail = async ({
   to,
@@ -11,29 +11,33 @@ export const sendEmail = async ({
   html?: string;
   text?: string;
 }) => {
-  const resend = new Resend(process.env.RESEND_API_KEY!);
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'Veda AI <onboarding@resend.dev>',
-    to,
-    subject,
-    html,
-    text,
-  });
-
-  if (error) {
-    console.error('[Email] Failed to send:', error.message);
-    throw new Error(error.message);
+  if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   }
 
-  console.log('[Email] Sent:', data?.id);
-  return data;
+  const msg = {
+    to,
+    from: process.env.EMAIL_FROM || 'test@example.com', // Change to your verified sender
+    subject,
+    text: text || '',
+    html: html || '',
+  };
+
+  try {
+    const response = await sgMail.send(msg);
+    console.log('[Email] Sent via SendGrid to:', to);
+    return response;
+  } catch (error: any) {
+    console.error('[Email] Failed to send:', error.response?.body || error.message);
+    throw new Error(error.message);
+  }
 };
 
 // Called on server startup to confirm email is configured
 export const verifySMTP = () => {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[Email] RESEND_API_KEY is not set — emails will not work.');
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('[Email] SENDGRID_API_KEY is not set — emails will not work.');
   } else {
-    console.log('[Email] Resend is configured and ready.');
+    console.log('[Email] SendGrid is configured and ready.');
   }
 };
