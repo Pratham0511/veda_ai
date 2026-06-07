@@ -26,7 +26,7 @@ export async function createAssignment(req, res) {
       }
     }
 
-    const files = req.files ? (req.files as Express.Multer.File[]).map(f => ({
+    const files = req.files ? (req.files as any[]).map(f => ({
       path: f.path,
       mimetype: f.mimetype,
       originalname: f.originalname
